@@ -1,9 +1,13 @@
+"""
+    Routines for model statistics calculation.
+"""
+
 import logging
 import numpy as np
 import mxnet as mx
 from mxnet.gluon import nn
 from mxnet.gluon.contrib.nn import Identity
-from .gluoncv2.models.common import ReLU6, ChannelShuffle, ChannelShuffle2, PReLU2
+from .gluoncv2.models.common import ReLU6, ChannelShuffle, ChannelShuffle2, PReLU2, HSigmoid, HSwish
 from .gluoncv2.models.fishnet import InterpolationBlock, ChannelSqueeze
 from .gluoncv2.models.irevnet import IRevDownscale, IRevSplitBlock, IRevMergeBlock
 from .gluoncv2.models.rir_cifar import RiRFinalBlock
@@ -13,6 +17,19 @@ __all__ = ['measure_model']
 
 
 def calc_block_num_params2(net):
+    """
+    Calculate number of trainable parameters in the block (not iterative).
+
+    Parameters
+    ----------
+    net : Block
+        Model/block.
+
+    Returns
+    -------
+    int
+        Number of parameters.
+    """
     net_params = net.collect_params()
     weight_count = 0
     for param in net_params.values():
@@ -23,6 +40,19 @@ def calc_block_num_params2(net):
 
 
 def calc_block_num_params(block):
+    """
+    Calculate number of trainable parameters in the block (iterative).
+
+    Parameters
+    ----------
+    block : Block
+        Model/block.
+
+    Returns
+    -------
+    int
+        Number of parameters.
+    """
     weight_count = 0
     for param in block.params.values():
         if (param.shape is None) or (not param._differentiable):
@@ -94,6 +124,12 @@ def measure_model(model,
             extra_num_macs = 0
         elif isinstance(block, nn.Swish):
             extra_num_flops = 5 * x[0].size
+            extra_num_macs = 0
+        elif isinstance(block, HSigmoid):
+            extra_num_flops = x[0].size
+            extra_num_macs = 0
+        elif isinstance(block, HSwish):
+            extra_num_flops = 2 * x[0].size
             extra_num_macs = 0
         elif isinstance(block, nn.Conv2D):
             batch = x[0].shape[0]

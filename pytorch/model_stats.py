@@ -1,9 +1,13 @@
+"""
+    Routines for model statistics calculation.
+"""
+
 import logging
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from .pytorchcv.models.common import ChannelShuffle, ChannelShuffle2, Identity, Flatten, Swish
+from .pytorchcv.models.common import ChannelShuffle, ChannelShuffle2, Identity, Flatten, Swish, HSigmoid, HSwish
 from .pytorchcv.models.fishnet import InterpolationBlock, ChannelSqueeze
 from .pytorchcv.models.irevnet import IRevDownscale, IRevSplitBlock, IRevMergeBlock
 from .pytorchcv.models.rir_cifar import RiRFinalBlock
@@ -13,6 +17,19 @@ __all__ = ['measure_model']
 
 
 def calc_block_num_params2(net):
+    """
+    Calculate number of trainable parameters in the block (not iterative).
+
+    Parameters
+    ----------
+    net : Module
+        Model/block.
+
+    Returns
+    -------
+    int
+        Number of parameters.
+    """
     net_params = filter(lambda p: p.requires_grad, net.parameters())
     weight_count = 0
     for param in net_params:
@@ -21,6 +38,19 @@ def calc_block_num_params2(net):
 
 
 def calc_block_num_params(module):
+    """
+    Calculate number of trainable parameters in the block (iterative).
+
+    Parameters
+    ----------
+    module : Module
+        Model/block.
+
+    Returns
+    -------
+    int
+        Number of parameters.
+    """
     assert isinstance(module, nn.Module)
     net_params = filter(lambda p: isinstance(p[1], nn.parameter.Parameter) and p[1].requires_grad,
                         module._parameters.items())
@@ -87,6 +117,12 @@ def measure_model(model,
             extra_num_macs = 0
         elif isinstance(module, Swish):
             extra_num_flops = 5 * x[0].numel()
+            extra_num_macs = 0
+        elif isinstance(module, HSigmoid):
+            extra_num_flops = x[0].numel()
+            extra_num_macs = 0
+        elif isinstance(module, HSwish):
+            extra_num_flops = 2 * x[0].numel()
             extra_num_macs = 0
         elif isinstance(module, nn.Conv2d):
             batch = x[0].shape[0]
@@ -171,6 +207,9 @@ def measure_model(model,
             extra_num_macs = 0
         elif isinstance(module, InterpolationBlock):
             extra_num_flops = x[0].numel()
+            extra_num_macs = 0
+        elif isinstance(module, nn.Upsample):
+            extra_num_flops = 4 * x[0].numel()
             extra_num_macs = 0
         elif isinstance(module, ChannelSqueeze):
             extra_num_flops = x[0].numel()

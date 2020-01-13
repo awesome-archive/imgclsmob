@@ -6,7 +6,8 @@
 
 __all__ = ['EfficientNet', 'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2', 'efficientnet_b3',
            'efficientnet_b4', 'efficientnet_b5', 'efficientnet_b6', 'efficientnet_b7', 'efficientnet_b0b',
-           'efficientnet_b1b', 'efficientnet_b2b', 'efficientnet_b3b']
+           'efficientnet_b1b', 'efficientnet_b2b', 'efficientnet_b3b', 'efficientnet_b4b', 'efficientnet_b5b',
+           'efficientnet_b6b', 'efficientnet_b7b']
 
 import os
 import math
@@ -15,8 +16,8 @@ import chainer.links as L
 from chainer import Chain
 from functools import partial
 from chainer.serializers import load_npz
-from .common import conv1x1_block, conv3x3_block, dwconv3x3_block, dwconv5x5_block, SEBlock, GlobalAvgPool2D,\
-    SimpleSequential
+from .common import round_channels, conv1x1_block, conv3x3_block, dwconv3x3_block, dwconv5x5_block, SEBlock,\
+    GlobalAvgPool2D, SimpleSequential
 
 
 def calc_tf_padding(x,
@@ -48,33 +49,6 @@ def calc_tf_padding(x,
     pad_h = max((oh - 1) * stride + (kernel_size - 1) * dilation + 1 - height, 0)
     pad_w = max((ow - 1) * stride + (kernel_size - 1) * dilation + 1 - width, 0)
     return (0, 0), (0, 0), (pad_h // 2, pad_h - pad_h // 2), (pad_w // 2, pad_w - pad_w // 2)
-
-
-def round_channels(channels,
-                   factor,
-                   divisor=8):
-    """
-    Round weighted channel number.
-
-    Parameters:
-    ----------
-    channels : int
-        Original number of channels.
-    factor : float
-        Weight factor.
-    divisor : int
-        Alignment value.
-
-    Returns
-    -------
-    int
-        Weighted number of channels.
-    """
-    channels *= factor
-    new_channels = max(int(channels + divisor / 2.0) // divisor * divisor, divisor)
-    if new_channels < 0.9 * channels:
-        new_channels += divisor
-    return new_channels
 
 
 class EffiDwsConvUnit(Chain):
@@ -118,7 +92,7 @@ class EffiDwsConvUnit(Chain):
             self.se = SEBlock(
                 channels=in_channels,
                 reduction=4,
-                activation=activation)
+                mid_activation=activation)
             self.pw_conv = conv1x1_block(
                 in_channels=in_channels,
                 out_channels=out_channels,
@@ -194,7 +168,7 @@ class EffiInvResUnit(Chain):
             self.se = SEBlock(
                 channels=mid_channels,
                 reduction=24,
-                activation=activation)
+                mid_activation=activation)
             self.conv3 = conv1x1_block(
                 in_channels=mid_channels,
                 out_channels=out_channels,
@@ -288,7 +262,7 @@ class EfficientNet(Chain):
         Number of input channels.
     in_size : tuple of two ints, default (224, 224)
         Spatial size of the expected input image.
-    num_classes : int, default 1000
+    classes : int, default 1000
         Number of classification classes.
     """
     def __init__(self,
@@ -348,24 +322,24 @@ class EfficientNet(Chain):
                                     tf_mode=tf_mode))
                             in_channels = out_channels
                     setattr(self.features, "stage{}".format(i + 1), stage)
-                setattr(self.features, 'final_block', conv1x1_block(
+                setattr(self.features, "final_block", conv1x1_block(
                     in_channels=in_channels,
                     out_channels=final_block_channels,
                     bn_eps=bn_eps,
                     activation=activation))
                 in_channels = final_block_channels
-                setattr(self.features, 'final_pool', GlobalAvgPool2D())
+                setattr(self.features, "final_pool", GlobalAvgPool2D())
 
             self.output = SimpleSequential()
             with self.output.init_scope():
-                setattr(self.output, 'flatten', partial(
+                setattr(self.output, "flatten", partial(
                     F.reshape,
                     shape=(-1, in_channels)))
                 if dropout_rate > 0.0:
-                    setattr(self.output, 'dropout', partial(
+                    setattr(self.output, "dropout", partial(
                         F.dropout,
                         ratio=dropout_rate))
-                setattr(self.output, 'fc', L.Linear(
+                setattr(self.output, "fc", L.Linear(
                     in_size=in_channels,
                     out_size=classes))
 
@@ -457,7 +431,7 @@ def get_efficientnet(version,
     final_block_channels = 1280
 
     layers = [int(math.ceil(li * depth_factor)) for li in layers]
-    channels_per_layers = [round_channels(ci, width_factor) for ci in channels_per_layers]
+    channels_per_layers = [round_channels(ci * width_factor) for ci in channels_per_layers]
 
     from functools import reduce
     channels = reduce(lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
@@ -470,11 +444,11 @@ def get_efficientnet(version,
                                zip(strides_per_stage, layers, downsample), [])
     strides_per_stage = [si[0] for si in strides_per_stage]
 
-    init_block_channels = round_channels(init_block_channels, width_factor)
+    init_block_channels = round_channels(init_block_channels * width_factor)
 
     if width_factor > 1.0:
-        assert (int(final_block_channels * width_factor) == round_channels(final_block_channels, width_factor))
-        final_block_channels = round_channels(final_block_channels, width_factor)
+        assert (int(final_block_channels * width_factor) == round_channels(final_block_channels * width_factor))
+        final_block_channels = round_channels(final_block_channels * width_factor)
 
     net = EfficientNet(
         channels=channels,
@@ -710,6 +684,78 @@ def efficientnet_b3b(in_size=(300, 300), **kwargs):
                             **kwargs)
 
 
+def efficientnet_b4b(in_size=(380, 380), **kwargs):
+    """
+    EfficientNet-B4-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    Neural Networks,' https://arxiv.org/abs/1905.11946.
+
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (380, 380)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.chainer/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(version="b4", in_size=in_size, tf_mode=True, bn_eps=1e-3, model_name="efficientnet_b4b",
+                            **kwargs)
+
+
+def efficientnet_b5b(in_size=(456, 456), **kwargs):
+    """
+    EfficientNet-B5-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    Neural Networks,' https://arxiv.org/abs/1905.11946.
+
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (456, 456)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.chainer/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(version="b5", in_size=in_size, tf_mode=True, bn_eps=1e-3, model_name="efficientnet_b5b",
+                            **kwargs)
+
+
+def efficientnet_b6b(in_size=(528, 528), **kwargs):
+    """
+    EfficientNet-B6-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    Neural Networks,' https://arxiv.org/abs/1905.11946.
+
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (528, 528)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.chainer/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(version="b6", in_size=in_size, tf_mode=True, bn_eps=1e-3, model_name="efficientnet_b6b",
+                            **kwargs)
+
+
+def efficientnet_b7b(in_size=(600, 600), **kwargs):
+    """
+    EfficientNet-B7-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    Neural Networks,' https://arxiv.org/abs/1905.11946.
+
+    Parameters:
+    ----------
+    in_size : tuple of two ints, default (600, 600)
+        Spatial size of the expected input image.
+    pretrained : bool, default False
+        Whether to load the pretrained weights for model.
+    root : str, default '~/.chainer/models'
+        Location for keeping the model parameters.
+    """
+    return get_efficientnet(version="b7", in_size=in_size, tf_mode=True, bn_eps=1e-3, model_name="efficientnet_b7b",
+                            **kwargs)
+
+
 def _test():
     import numpy as np
     import chainer
@@ -731,6 +777,10 @@ def _test():
         efficientnet_b1b,
         efficientnet_b2b,
         efficientnet_b3b,
+        efficientnet_b4b,
+        efficientnet_b5b,
+        efficientnet_b6b,
+        efficientnet_b7b,
     ]
 
     for model in models:
@@ -750,6 +800,10 @@ def _test():
         assert (model != efficientnet_b1b or weight_count == 7794184)
         assert (model != efficientnet_b2b or weight_count == 9109994)
         assert (model != efficientnet_b3b or weight_count == 12233232)
+        assert (model != efficientnet_b4b or weight_count == 19341616)
+        assert (model != efficientnet_b5b or weight_count == 30389784)
+        assert (model != efficientnet_b6b or weight_count == 43040704)
+        assert (model != efficientnet_b7b or weight_count == 66347960)
 
         x = np.zeros((1, 3, net.in_size[0], net.in_size[1]), np.float32)
         y = net(x)

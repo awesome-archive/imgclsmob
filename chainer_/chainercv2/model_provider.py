@@ -35,6 +35,8 @@ from .models.bagnet import *
 from .models.dla import *
 from .models.fishnet import *
 from .models.espnetv2 import *
+from .models.hrnet import *
+from .models.selecsls import *
 from .models.xdensenet import *
 from .models.squeezenet import *
 from .models.squeezenext import *
@@ -46,9 +48,11 @@ from .models.mobilenet import *
 from .models.mobilenetv2 import *
 from .models.mobilenetv3 import *
 from .models.igcv3 import *
+from .models.ghostnet import *
 from .models.mnasnet import *
 from .models.darts import *
 from .models.proxylessnas import *
+from .models.fbnet import *
 from .models.xception import *
 from .models.inceptionv3 import *
 from .models.inceptionv4 import *
@@ -56,13 +60,16 @@ from .models.inceptionresnetv2 import *
 from .models.polynet import *
 from .models.nasnet import *
 from .models.pnasnet import *
+from .models.spnasnet import *
 from .models.efficientnet import *
+from .models.mixnet import *
 
 from .models.nin_cifar import *
 from .models.resnet_cifar import *
 from .models.preresnet_cifar import *
 from .models.resnext_cifar import *
 from .models.seresnet_cifar import *
+from .models.sepreresnet_cifar import *
 from .models.pyramidnet_cifar import *
 from .models.densenet_cifar import *
 from .models.xdensenet_cifar import *
@@ -95,8 +102,10 @@ __all__ = ['get_model']
 
 _models = {
     'alexnet': alexnet,
+    'alexnetb': alexnetb,
 
     'zfnet': zfnet,
+    'zfnetb': zfnetb,
 
     'vgg11': vgg11,
     'vgg13': vgg13,
@@ -187,8 +196,15 @@ _models = {
     'seresnet200': seresnet200,
     'seresnet200b': seresnet200b,
 
+    'sepreresnet10': sepreresnet10,
+    'sepreresnet12': sepreresnet12,
+    'sepreresnet14': sepreresnet14,
+    'sepreresnet16': sepreresnet16,
     'sepreresnet18': sepreresnet18,
+    'sepreresnet26': sepreresnet26,
+    'sepreresnetbc26b': sepreresnetbc26b,
     'sepreresnet34': sepreresnet34,
+    'sepreresnetbc38b': sepreresnetbc38b,
     'sepreresnet50': sepreresnet50,
     'sepreresnet50b': sepreresnet50b,
     'sepreresnet101': sepreresnet101,
@@ -359,6 +375,22 @@ _models = {
     'espnetv2_w3d2': espnetv2_w3d2,
     'espnetv2_w2': espnetv2_w2,
 
+    'hrnet_w18_small_v1': hrnet_w18_small_v1,
+    'hrnet_w18_small_v2': hrnet_w18_small_v2,
+    'hrnetv2_w18': hrnetv2_w18,
+    'hrnetv2_w30': hrnetv2_w30,
+    'hrnetv2_w32': hrnetv2_w32,
+    'hrnetv2_w40': hrnetv2_w40,
+    'hrnetv2_w44': hrnetv2_w44,
+    'hrnetv2_w48': hrnetv2_w48,
+    'hrnetv2_w64': hrnetv2_w64,
+
+    'selecsls42': selecsls42,
+    'selecsls42b': selecsls42b,
+    'selecsls60': selecsls60,
+    'selecsls60b': selecsls60b,
+    'selecsls84': selecsls84,
+
     'xdensenet121_2': xdensenet121_2,
     'xdensenet161_2': xdensenet161_2,
     'xdensenet169_2': xdensenet169_2,
@@ -439,7 +471,11 @@ _models = {
     'igcv3_wd2': igcv3_wd2,
     'igcv3_wd4': igcv3_wd4,
 
-    'mnasnet': mnasnet,
+    'ghostnet': ghostnet,
+
+    'mnasnet_b1': mnasnet_b1,
+    'mnasnet_a1': mnasnet_a1,
+    'mnasnet_small': mnasnet_small,
 
     'darts': darts,
 
@@ -447,6 +483,8 @@ _models = {
     'proxylessnas_gpu': proxylessnas_gpu,
     'proxylessnas_mobile': proxylessnas_mobile,
     'proxylessnas_mobile14': proxylessnas_mobile14,
+
+    'fbnet_cb': fbnet_cb,
 
     'xception': xception,
     'inceptionv3': inceptionv3,
@@ -458,6 +496,8 @@ _models = {
     'nasnet_6a4032': nasnet_6a4032,
 
     'pnasnet5large': pnasnet5large,
+
+    'spnasnet': spnasnet,
 
     'efficientnet_b0': efficientnet_b0,
     'efficientnet_b1': efficientnet_b1,
@@ -471,6 +511,14 @@ _models = {
     'efficientnet_b1b': efficientnet_b1b,
     'efficientnet_b2b': efficientnet_b2b,
     'efficientnet_b3b': efficientnet_b3b,
+    'efficientnet_b4b': efficientnet_b4b,
+    'efficientnet_b5b': efficientnet_b5b,
+    'efficientnet_b6b': efficientnet_b6b,
+    'efficientnet_b7b': efficientnet_b7b,
+
+    'mixnet_s': mixnet_s,
+    'mixnet_m': mixnet_m,
+    'mixnet_l': mixnet_l,
 
     'nin_cifar10': nin_cifar10,
     'nin_cifar100': nin_cifar100,
@@ -513,6 +561,12 @@ _models = {
     'preresnet164bn_cifar10': preresnet164bn_cifar10,
     'preresnet164bn_cifar100': preresnet164bn_cifar100,
     'preresnet164bn_svhn': preresnet164bn_svhn,
+    'preresnet272bn_cifar10': preresnet272bn_cifar10,
+    'preresnet272bn_cifar100': preresnet272bn_cifar100,
+    'preresnet272bn_svhn': preresnet272bn_svhn,
+    'preresnet542bn_cifar10': preresnet542bn_cifar10,
+    'preresnet542bn_cifar100': preresnet542bn_cifar100,
+    'preresnet542bn_svhn': preresnet542bn_svhn,
     'preresnet1001_cifar10': preresnet1001_cifar10,
     'preresnet1001_cifar100': preresnet1001_cifar100,
     'preresnet1001_svhn': preresnet1001_svhn,
@@ -535,6 +589,12 @@ _models = {
     'resnext29_16x64d_cifar10': resnext29_16x64d_cifar10,
     'resnext29_16x64d_cifar100': resnext29_16x64d_cifar100,
     'resnext29_16x64d_svhn': resnext29_16x64d_svhn,
+    'resnext272_1x64d_cifar10': resnext272_1x64d_cifar10,
+    'resnext272_1x64d_cifar100': resnext272_1x64d_cifar100,
+    'resnext272_1x64d_svhn': resnext272_1x64d_svhn,
+    'resnext272_2x32d_cifar10': resnext272_2x32d_cifar10,
+    'resnext272_2x32d_cifar100': resnext272_2x32d_cifar100,
+    'resnext272_2x32d_svhn': resnext272_2x32d_svhn,
 
     'seresnet20_cifar10': seresnet20_cifar10,
     'seresnet20_cifar100': seresnet20_cifar100,
@@ -548,12 +608,43 @@ _models = {
     'seresnet164bn_cifar10': seresnet164bn_cifar10,
     'seresnet164bn_cifar100': seresnet164bn_cifar100,
     'seresnet164bn_svhn': seresnet164bn_svhn,
+    'seresnet272bn_cifar10': seresnet272bn_cifar10,
+    'seresnet272bn_cifar100': seresnet272bn_cifar100,
+    'seresnet272bn_svhn': seresnet272bn_svhn,
+    'seresnet542bn_cifar10': seresnet542bn_cifar10,
+    'seresnet542bn_cifar100': seresnet542bn_cifar100,
+    'seresnet542bn_svhn': seresnet542bn_svhn,
     'seresnet1001_cifar10': seresnet1001_cifar10,
     'seresnet1001_cifar100': seresnet1001_cifar100,
     'seresnet1001_svhn': seresnet1001_svhn,
     'seresnet1202_cifar10': seresnet1202_cifar10,
     'seresnet1202_cifar100': seresnet1202_cifar100,
     'seresnet1202_svhn': seresnet1202_svhn,
+
+    'sepreresnet20_cifar10': sepreresnet20_cifar10,
+    'sepreresnet20_cifar100': sepreresnet20_cifar100,
+    'sepreresnet20_svhn': sepreresnet20_svhn,
+    'sepreresnet56_cifar10': sepreresnet56_cifar10,
+    'sepreresnet56_cifar100': sepreresnet56_cifar100,
+    'sepreresnet56_svhn': sepreresnet56_svhn,
+    'sepreresnet110_cifar10': sepreresnet110_cifar10,
+    'sepreresnet110_cifar100': sepreresnet110_cifar100,
+    'sepreresnet110_svhn': sepreresnet110_svhn,
+    'sepreresnet164bn_cifar10': sepreresnet164bn_cifar10,
+    'sepreresnet164bn_cifar100': sepreresnet164bn_cifar100,
+    'sepreresnet164bn_svhn': sepreresnet164bn_svhn,
+    'sepreresnet272bn_cifar10': sepreresnet272bn_cifar10,
+    'sepreresnet272bn_cifar100': sepreresnet272bn_cifar100,
+    'sepreresnet272bn_svhn': sepreresnet272bn_svhn,
+    'sepreresnet542bn_cifar10': sepreresnet542bn_cifar10,
+    'sepreresnet542bn_cifar100': sepreresnet542bn_cifar100,
+    'sepreresnet542bn_svhn': sepreresnet542bn_svhn,
+    'sepreresnet1001_cifar10': sepreresnet1001_cifar10,
+    'sepreresnet1001_cifar100': sepreresnet1001_cifar100,
+    'sepreresnet1001_svhn': sepreresnet1001_svhn,
+    'sepreresnet1202_cifar10': sepreresnet1202_cifar10,
+    'sepreresnet1202_cifar100': sepreresnet1202_cifar100,
+    'sepreresnet1202_svhn': sepreresnet1202_svhn,
 
     'pyramidnet110_a48_cifar10': pyramidnet110_a48_cifar10,
     'pyramidnet110_a48_cifar100': pyramidnet110_a48_cifar100,

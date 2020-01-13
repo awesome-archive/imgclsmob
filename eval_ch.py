@@ -1,12 +1,14 @@
+"""
+    Script for evaluating trained model on Chainer (validate/test).
+"""
+
 import os
 import time
 import logging
 import argparse
-
 from chainer import global_config
 from chainercv.utils import apply_to_iterator
 from chainercv.utils import ProgressHook
-
 from common.logger_utils import initialize_logging
 from chainer_.utils import prepare_ch_context, prepare_model, Predictor
 from chainer_.utils import get_composite_metric, report_accuracy
@@ -15,6 +17,14 @@ from chainer_.dataset_utils import get_val_data_source, get_test_data_source
 
 
 def add_eval_parser_arguments(parser):
+    """
+    Create python script parameters (for eval specific subpart).
+
+    Parameters:
+    ----------
+    parser : ArgumentParser
+        ArgumentParser instance.
+    """
     parser.add_argument(
         "--model",
         type=str,
@@ -73,7 +83,7 @@ def add_eval_parser_arguments(parser):
     parser.add_argument(
         "--log-pip-packages",
         type=str,
-        default="cupy-cuda100, chainer, chainercv",
+        default="cupy-cuda100, cupy-cuda101, chainer, chainercv",
         help="list of pip packages for logging")
 
     parser.add_argument(
@@ -87,6 +97,14 @@ def add_eval_parser_arguments(parser):
 
 
 def parse_args():
+    """
+    Create python script parameters (common part).
+
+    Returns
+    -------
+    ArgumentParser
+        Resulted args.
+    """
     parser = argparse.ArgumentParser(
         description="Evaluate a model for image classification/segmentation (Chainer)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -119,6 +137,22 @@ def test(net,
          metric,
          calc_weight_count=False,
          extended_log=False):
+    """
+    Main test routine.
+
+    Parameters:
+    ----------
+    net : Chain
+        Model.
+    test_data : dict
+        Data loader.
+    metric : EvalMetric
+        Metric object instance.
+    calc_weight_count : bool, default False
+        Whether to calculate count of weights.
+    extended_log : bool, default False
+        Whether to log more precise accuracy values.
+    """
     tic = time.time()
 
     predictor = Predictor(
@@ -129,18 +163,23 @@ def test(net,
         weight_count = net.count_params()
         logging.info("Model: {} trainable parameters".format(weight_count))
 
-    _, out_values, rest_values = apply_to_iterator(
+    in_values, out_values, rest_values = apply_to_iterator(
         func=predictor,
         iterator=test_data["iterator"],
         hook=ProgressHook(test_data["ds_len"]))
     assert (len(rest_values) == 1)
     assert (len(out_values) == 1)
+    assert (len(in_values) == 1)
 
-    if False:
+    if True:
         labels = iter(rest_values[0])
         preds = iter(out_values[0])
-        for label, pred in zip(labels, preds):
+        inputs = iter(in_values[0])
+        for label, pred, inputi in zip(labels, preds, inputs):
             metric.update(label, pred)
+            del label
+            del pred
+            del inputi
     else:
         import numpy as np
         metric.update(
@@ -156,6 +195,9 @@ def test(net,
 
 
 def main():
+    """
+    Main body of script.
+    """
     args = parse_args()
 
     if args.disable_cudnn_autotune:
