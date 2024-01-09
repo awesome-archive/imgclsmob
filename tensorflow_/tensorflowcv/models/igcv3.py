@@ -41,7 +41,7 @@ def inv_res_unit(x,
     name : str, default 'inv_res_unit'
         Unit name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -145,7 +145,7 @@ class IGCV3(object):
         training : bool, or a TensorFlow boolean scalar tensor, default False
           Whether to return the output in training mode or in inference mode.
 
-        Returns
+        Returns:
         -------
         Tensor
             Resulted tensor.
@@ -183,21 +183,19 @@ class IGCV3(object):
             training=training,
             data_format=self.data_format,
             name="features/final_block")
-        x = tf.layers.average_pooling2d(
-            inputs=x,
+        x = tf.keras.layers.AveragePooling2D(
             pool_size=7,
             strides=1,
             data_format=self.data_format,
-            name="features/final_pool")
+            name="features/final_pool")(x)
 
         # x = tf.layers.flatten(x)
         x = flatten(
             x=x,
             data_format=self.data_format)
-        x = tf.layers.dense(
-            inputs=x,
+        x = tf.keras.layers.Dense(
             units=self.classes,
-            name="output")
+            name="output")(x)
 
         return x
 
@@ -274,7 +272,7 @@ def igcv3_w1(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -294,7 +292,7 @@ def igcv3_w3d4(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -314,7 +312,7 @@ def igcv3_wd2(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -334,7 +332,7 @@ def igcv3_wd4(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.

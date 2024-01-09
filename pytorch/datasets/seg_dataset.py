@@ -8,14 +8,14 @@ class SegDataset(data.Dataset):
     """
     Segmentation base dataset.
 
-    Parameters
+    Parameters:
     ----------
     root : str
-        Path to data folder.
+        Path to the folder stored the dataset.
     mode : str
         'train', 'val', 'test', or 'demo'.
-    transform : callable
-        A function that transforms the image.
+    transform : func
+        A function that takes data and transforms it.
     """
     def __init__(self,
                  root,

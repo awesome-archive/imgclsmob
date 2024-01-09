@@ -4,7 +4,7 @@
     https://arxiv.org/abs/1707.07012.
 """
 
-__all__ = ['NASNet', 'nasnet_4a1056', 'nasnet_6a4032']
+__all__ = ['NASNet', 'nasnet_4a1056', 'nasnet_6a4032', 'nasnet_dual_path_sequential']
 
 import os
 import chainer.functions as F
@@ -42,7 +42,7 @@ class NasDualPathScheme(object):
     x_prev : Tensor
         Previous processed tensor.
 
-    Returns
+    Returns:
     -------
     x_next : Tensor
         Next processed tensor.
@@ -76,7 +76,7 @@ def nasnet_dual_path_scheme_ordinal(block,
     x : Tensor
         Current processed tensor.
 
-    Returns
+    Returns:
     -------
     x_next : Tensor
         Next processed tensor.
@@ -180,7 +180,7 @@ def process_with_padding(x,
     pad_width : tuple of tuple of int, default ((0, 0), (0, 0), (1, 0), (1, 0))
         Whether the layer uses a bias vector.
 
-    Returns
+    Returns:
     -------
     chainer.Variable or numpy.ndarray or cupy.ndarray
         Resulted tensor.
@@ -1163,20 +1163,20 @@ class NASNet(Chain):
                     setattr(self.features, "stage{}".format(i + 1), stage)
 
                 setattr(self.features, "final_activ", F.relu)
-                setattr(self.features, 'final_pool', partial(
+                setattr(self.features, "final_pool", partial(
                     F.average_pooling_2d,
                     ksize=final_pool_size,
                     stride=1))
 
             self.output = SimpleSequential()
             with self.output.init_scope():
-                setattr(self.output, 'flatten', partial(
+                setattr(self.output, "flatten", partial(
                     F.reshape,
                     shape=(-1, in_channels)))
-                setattr(self.output, 'dropout', partial(
+                setattr(self.output, "dropout", partial(
                     F.dropout,
                     ratio=0.5))
-                setattr(self.output, 'fc', L.Linear(
+                setattr(self.output, "fc", L.Linear(
                     in_size=in_channels,
                     out_size=classes))
 

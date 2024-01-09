@@ -38,7 +38,7 @@ def dwconv3x3(x,
     name : str, default 'dwconv3x3'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -104,7 +104,7 @@ def channet_conv(x,
     name : str, default 'channet_conv'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -122,11 +122,11 @@ def channet_conv(x,
         data_format=data_format,
         name=name + "/conv")
     if dropout_rate > 0.0:
-        x = tf.layers.dropout(
-            inputs=x,
+        x = tf.keras.layers.Dropout(
             rate=dropout_rate,
-            training=training,
-            name=name + "/dropout")
+            name=name + "/dropout")(
+            inputs=x,
+            training=training)
     x = batchnorm(
         x=x,
         training=training,
@@ -176,7 +176,7 @@ def channet_conv1x1(x,
     name : str, default 'channet_conv1x1'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -242,7 +242,7 @@ def channet_conv3x3(x,
     name : str, default 'channet_conv3x3'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -298,7 +298,7 @@ def channet_dws_conv_block(x,
     name : str, default 'channet_dws_conv_block'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -352,7 +352,7 @@ def simple_group_block(x,
     name : str, default 'simple_group_block'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -394,7 +394,7 @@ def channelwise_conv2d(x,
     name : str, default 'channelwise_conv2d'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -403,21 +403,20 @@ def channelwise_conv2d(x,
     filters = groups
     kernel_size = [4 * groups, 1, 1]
     strides = [groups, 1, 1]
-    x = tf.layers.conv3d(
-        inputs=x,
+    x = tf.keras.layers.Conv3D(
         filters=filters,
         kernel_size=kernel_size,
         strides=strides,
         padding="same",
         data_format=data_format,
         use_bias=False,
-        name=name + '/conv')
+        name=name + '/conv')(x)
     if dropout_rate > 0.0:
-        x = tf.layers.dropout(
-            inputs=x,
+        x = tf.keras.layers.Dropout(
             rate=dropout_rate,
-            training=training,
-            name=name + "/dropout")
+            name=name + "/dropout")(
+            inputs=x,
+            training=training)
     if filters == 1:
         x = tf.squeeze(x, axis=[get_channel_axis(data_format)], name=name + '/squeeze')
     x = tf.unstack(x, axis=get_channel_axis(data_format), name=name + '/unstack')
@@ -455,7 +454,7 @@ def conv_group_block(x,
     name : str, default 'conv_group_block'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -523,7 +522,7 @@ def channet_unit(x,
     name : str, default 'channet_unit'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -658,7 +657,7 @@ class ChannelNet(object):
         training : bool, or a TensorFlow boolean scalar tensor, default False
           Whether to return the output in training mode or in inference mode.
 
-        Returns
+        Returns:
         -------
         Tensor
             Resulted tensor.
@@ -685,21 +684,19 @@ class ChannelNet(object):
                 else:
                     in_channels = out_channels[-1]
 
-        x = tf.layers.average_pooling2d(
-            inputs=x,
+        x = tf.keras.layers.AveragePooling2D(
             pool_size=7,
             strides=1,
             data_format=self.data_format,
-            name="features/final_pool")
+            name="features/final_pool")(x)
 
         # x = tf.layers.flatten(x)
         x = flatten(
             x=x,
             data_format=self.data_format)
-        x = tf.layers.dense(
-            inputs=x,
+        x = tf.keras.layers.Dense(
             units=self.classes,
-            name="output")
+            name="output")(x)
 
         return x
 
@@ -766,7 +763,7 @@ def channelnet(**kwargs):
 def _test():
     import numpy as np
 
-    data_format = "channels_last"
+    data_format = "channels_first"
     pretrained = False
 
     models = [

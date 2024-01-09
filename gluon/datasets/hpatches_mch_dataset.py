@@ -17,7 +17,7 @@ class HPatches(dataset.Dataset):
     Info URL: https://github.com/hpatches/hpatches-dataset
     Data URL: http://icvl.ee.ic.ac.uk/vbalnt/hpatches/hpatches-sequences-release.tar.gz
 
-    Parameters
+    Parameters:
     ----------
     root : str, default '~/.mxnet/datasets/hpatches'
         Path to the folder stored the dataset.
@@ -108,7 +108,7 @@ class HPatchesMetaInfo(DatasetMetaInfo):
         self.val_transform = hpatches_val_transform
         self.test_transform = hpatches_val_transform
         self.allow_hybridize = False
-        self.net_extra_kwargs = {"hybridizable": False, "in_size": None}
+        self.test_net_extra_kwargs = {"hybridizable": False, "in_size": None}
 
 
 def hpatches_val_transform(ds_metainfo):

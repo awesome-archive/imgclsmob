@@ -32,7 +32,7 @@ def sqnxt_unit(x,
     name : str, default 'sqnxt_unit'
         Block name.
 
-    Returns
+    Returns:
     -------
     keras.backend tensor/variable/symbol
         Resulted tensor/variable/symbol.
@@ -97,7 +97,7 @@ def sqnxt_unit(x,
         name=name + "/conv5")
 
     x = nn.add([x, identity], name=name + "/add")
-    x = nn.Activation('relu', name=name + "/final_activ")(x)
+    x = nn.Activation("relu", name=name + "/final_activ")(x)
     return x
 
 
@@ -119,7 +119,7 @@ def sqnxt_init_block(x,
     name : str, default 'sqnxt_init_block'
         Block name.
 
-    Returns
+    Returns:
     -------
     keras.backend tensor/variable/symbol
         Resulted tensor/variable/symbol.

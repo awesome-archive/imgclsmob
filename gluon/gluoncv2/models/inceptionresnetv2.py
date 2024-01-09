@@ -10,446 +10,9 @@ import os
 from mxnet import cpu
 from mxnet.gluon import nn, HybridBlock
 from mxnet.gluon.contrib.nn import HybridConcurrent
-from .common import conv1x1
-
-
-class InceptConv(HybridBlock):
-    """
-    InceptionResNetV2 specific convolution block.
-
-    Parameters:
-    ----------
-    in_channels : int
-        Number of input channels.
-    out_channels : int
-        Number of output channels.
-    kernel_size : int or tuple/list of 2 int
-        Convolution window size.
-    strides : int or tuple/list of 2 int
-        Strides of the convolution.
-    padding : int or tuple/list of 2 int
-        Padding value for convolution layer.
-    bn_use_global_stats : bool
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 strides,
-                 padding,
-                 bn_use_global_stats,
-                 **kwargs):
-        super(InceptConv, self).__init__(**kwargs)
-        with self.name_scope():
-            self.conv = nn.Conv2D(
-                channels=out_channels,
-                kernel_size=kernel_size,
-                strides=strides,
-                padding=padding,
-                use_bias=False,
-                in_channels=in_channels)
-            self.bn = nn.BatchNorm(
-                momentum=0.1,
-                epsilon=1e-3,
-                in_channels=out_channels,
-                use_global_stats=bn_use_global_stats)
-            self.activ = nn.Activation("relu")
-
-    def hybrid_forward(self, F, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        x = self.activ(x)
-        return x
-
-
-def incept_conv1x1(in_channels,
-                   out_channels,
-                   bn_use_global_stats):
-    """
-    1x1 version of the InceptionResNetV2 specific convolution block.
-
-    Parameters:
-    ----------
-    in_channels : int
-        Number of input channels.
-    out_channels : int
-        Number of output channels.
-    bn_use_global_stats : bool
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    return InceptConv(
-        in_channels=in_channels,
-        out_channels=out_channels,
-        kernel_size=1,
-        strides=1,
-        padding=0,
-        bn_use_global_stats=bn_use_global_stats)
-
-
-class MaxPoolBranch(HybridBlock):
-    """
-    InceptionResNetV2 specific max pooling branch block.
-    """
-    def __init__(self,
-                 **kwargs):
-        super(MaxPoolBranch, self).__init__(**kwargs)
-        with self.name_scope():
-            self.pool = nn.MaxPool2D(
-                pool_size=3,
-                strides=2,
-                padding=0)
-
-    def hybrid_forward(self, F, x):
-        x = self.pool(x)
-        return x
-
-
-class AvgPoolBranch(HybridBlock):
-    """
-    InceptionResNetV2 specific average pooling branch block.
-
-    Parameters:
-    ----------
-    in_channels : int
-        Number of input channels.
-    out_channels : int
-        Number of output channels.
-    bn_use_global_stats : bool
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 bn_use_global_stats,
-                 **kwargs):
-        super(AvgPoolBranch, self).__init__(**kwargs)
-        with self.name_scope():
-            self.pool = nn.AvgPool2D(
-                pool_size=3,
-                strides=1,
-                padding=1,
-                count_include_pad=False)
-            self.conv = incept_conv1x1(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                bn_use_global_stats=bn_use_global_stats)
-
-    def hybrid_forward(self, F, x):
-        x = self.pool(x)
-        x = self.conv(x)
-        return x
-
-
-class Conv1x1Branch(HybridBlock):
-    """
-    InceptionResNetV2 specific convolutional 1x1 branch block.
-
-    Parameters:
-    ----------
-    in_channels : int
-        Number of input channels.
-    out_channels : int
-        Number of output channels.
-    bn_use_global_stats : bool
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 bn_use_global_stats,
-                 **kwargs):
-        super(Conv1x1Branch, self).__init__(**kwargs)
-        with self.name_scope():
-            self.conv = incept_conv1x1(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                bn_use_global_stats=bn_use_global_stats)
-
-    def hybrid_forward(self, F, x):
-        x = self.conv(x)
-        return x
-
-
-class ConvSeqBranch(HybridBlock):
-    """
-    InceptionResNetV2 specific convolutional sequence branch block.
-
-    Parameters:
-    ----------
-    in_channels : int
-        Number of input channels.
-    out_channels_list : list of tuple of int
-        List of numbers of output channels.
-    kernel_size_list : list of tuple of int or tuple of tuple/list of 2 int
-        List of convolution window sizes.
-    strides_list : list of tuple of int or tuple of tuple/list of 2 int
-        List of strides of the convolution.
-    padding_list : list of tuple of int or tuple of tuple/list of 2 int
-        List of padding values for convolution layers.
-    bn_use_global_stats : bool
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    def __init__(self,
-                 in_channels,
-                 out_channels_list,
-                 kernel_size_list,
-                 strides_list,
-                 padding_list,
-                 bn_use_global_stats,
-                 **kwargs):
-        super(ConvSeqBranch, self).__init__(**kwargs)
-        assert (len(out_channels_list) == len(kernel_size_list))
-        assert (len(out_channels_list) == len(strides_list))
-        assert (len(out_channels_list) == len(padding_list))
-
-        with self.name_scope():
-            self.conv_list = nn.HybridSequential(prefix="")
-            for i, (out_channels, kernel_size, strides, padding) in enumerate(zip(
-                    out_channels_list, kernel_size_list, strides_list, padding_list)):
-                self.conv_list.add(InceptConv(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    strides=strides,
-                    padding=padding,
-                    bn_use_global_stats=bn_use_global_stats))
-                in_channels = out_channels
-
-    def hybrid_forward(self, F, x):
-        x = self.conv_list(x)
-        return x
-
-
-class InceptionAUnit(HybridBlock):
-    """
-    InceptionResNetV2 type Inception-A unit.
-
-    Parameters:
-    ----------
-    bn_use_global_stats : bool
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    def __init__(self,
-                 bn_use_global_stats,
-                 **kwargs):
-        super(InceptionAUnit, self).__init__(**kwargs)
-        self.scale = 0.17
-        in_channels = 320
-
-        with self.name_scope():
-            self.branches = HybridConcurrent(axis=1, prefix="")
-            self.branches.add(Conv1x1Branch(
-                in_channels=in_channels,
-                out_channels=32,
-                bn_use_global_stats=bn_use_global_stats))
-            self.branches.add(ConvSeqBranch(
-                in_channels=in_channels,
-                out_channels_list=(32, 32),
-                kernel_size_list=(1, 3),
-                strides_list=(1, 1),
-                padding_list=(0, 1),
-                bn_use_global_stats=bn_use_global_stats))
-            self.branches.add(ConvSeqBranch(
-                in_channels=in_channels,
-                out_channels_list=(32, 48, 64),
-                kernel_size_list=(1, 3, 3),
-                strides_list=(1, 1, 1),
-                padding_list=(0, 1, 1),
-                bn_use_global_stats=bn_use_global_stats))
-            self.conv = conv1x1(
-                in_channels=128,
-                out_channels=in_channels,
-                use_bias=True)
-            self.activ = nn.Activation("relu")
-
-    def hybrid_forward(self, F, x):
-        identity = x
-        x = self.branches(x)
-        x = self.conv(x)
-        x = self.scale * x + identity
-        x = self.activ(x)
-        return x
-
-
-class ReductionAUnit(HybridBlock):
-    """
-    InceptionResNetV2 type Reduction-A unit.
-
-    Parameters:
-    ----------
-    bn_use_global_stats : bool
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    def __init__(self,
-                 bn_use_global_stats,
-                 **kwargs):
-        super(ReductionAUnit, self).__init__(**kwargs)
-        in_channels = 320
-
-        with self.name_scope():
-            self.branches = HybridConcurrent(axis=1, prefix="")
-            self.branches.add(ConvSeqBranch(
-                in_channels=in_channels,
-                out_channels_list=(384,),
-                kernel_size_list=(3,),
-                strides_list=(2,),
-                padding_list=(0,),
-                bn_use_global_stats=bn_use_global_stats))
-            self.branches.add(ConvSeqBranch(
-                in_channels=in_channels,
-                out_channels_list=(256, 256, 384),
-                kernel_size_list=(1, 3, 3),
-                strides_list=(1, 1, 2),
-                padding_list=(0, 1, 0),
-                bn_use_global_stats=bn_use_global_stats))
-            self.branches.add(MaxPoolBranch())
-
-    def hybrid_forward(self, F, x):
-        x = self.branches(x)
-        return x
-
-
-class InceptionBUnit(HybridBlock):
-    """
-    InceptionResNetV2 type Inception-B unit.
-
-    Parameters:
-    ----------
-    bn_use_global_stats : bool
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    def __init__(self,
-                 bn_use_global_stats,
-                 **kwargs):
-        super(InceptionBUnit, self).__init__(**kwargs)
-        self.scale = 0.10
-        in_channels = 1088
-
-        with self.name_scope():
-            self.branches = HybridConcurrent(axis=1, prefix="")
-            self.branches.add(Conv1x1Branch(
-                in_channels=in_channels,
-                out_channels=192,
-                bn_use_global_stats=bn_use_global_stats))
-            self.branches.add(ConvSeqBranch(
-                in_channels=in_channels,
-                out_channels_list=(128, 160, 192),
-                kernel_size_list=(1, (1, 7), (7, 1)),
-                strides_list=(1, 1, 1),
-                padding_list=(0, (0, 3), (3, 0)),
-                bn_use_global_stats=bn_use_global_stats))
-            self.conv = conv1x1(
-                in_channels=384,
-                out_channels=in_channels,
-                use_bias=True)
-            self.activ = nn.Activation("relu")
-
-    def hybrid_forward(self, F, x):
-        identity = x
-        x = self.branches(x)
-        x = self.conv(x)
-        x = self.scale * x + identity
-        x = self.activ(x)
-        return x
-
-
-class ReductionBUnit(HybridBlock):
-    """
-    InceptionResNetV2 type Reduction-B unit.
-
-    Parameters:
-    ----------
-    bn_use_global_stats : bool
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    def __init__(self,
-                 bn_use_global_stats,
-                 **kwargs):
-        super(ReductionBUnit, self).__init__(**kwargs)
-        in_channels = 1088
-
-        with self.name_scope():
-            self.branches = HybridConcurrent(axis=1, prefix="")
-            self.branches.add(ConvSeqBranch(
-                in_channels=in_channels,
-                out_channels_list=(256, 384),
-                kernel_size_list=(1, 3),
-                strides_list=(1, 2),
-                padding_list=(0, 0),
-                bn_use_global_stats=bn_use_global_stats))
-            self.branches.add(ConvSeqBranch(
-                in_channels=in_channels,
-                out_channels_list=(256, 288),
-                kernel_size_list=(1, 3),
-                strides_list=(1, 2),
-                padding_list=(0, 0),
-                bn_use_global_stats=bn_use_global_stats))
-            self.branches.add(ConvSeqBranch(
-                in_channels=in_channels,
-                out_channels_list=(256, 288, 320),
-                kernel_size_list=(1, 3, 3),
-                strides_list=(1, 1, 2),
-                padding_list=(0, 1, 0),
-                bn_use_global_stats=bn_use_global_stats))
-            self.branches.add(MaxPoolBranch())
-
-    def hybrid_forward(self, F, x):
-        x = self.branches(x)
-        return x
-
-
-class InceptionCUnit(HybridBlock):
-    """
-    InceptionResNetV2 type Inception-C unit.
-
-    Parameters:
-    ----------
-    scale : float, default 1.0
-        Scale value for residual branch.
-    activate : bool, default True
-        Whether activate the convolution block.
-    bn_use_global_stats : bool, default False
-        Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
-    """
-    def __init__(self,
-                 scale=0.2,
-                 activate=True,
-                 bn_use_global_stats=False,
-                 **kwargs):
-        super(InceptionCUnit, self).__init__(**kwargs)
-        self.activate = activate
-        self.scale = scale
-        in_channels = 2080
-
-        with self.name_scope():
-            self.branches = HybridConcurrent(axis=1, prefix="")
-            self.branches.add(Conv1x1Branch(
-                in_channels=in_channels,
-                out_channels=192,
-                bn_use_global_stats=bn_use_global_stats))
-            self.branches.add(ConvSeqBranch(
-                in_channels=in_channels,
-                out_channels_list=(192, 224, 256),
-                kernel_size_list=(1, (1, 3), (3, 1)),
-                strides_list=(1, 1, 1),
-                padding_list=(0, (0, 1), (1, 0)),
-                bn_use_global_stats=bn_use_global_stats))
-            self.conv = conv1x1(
-                in_channels=448,
-                out_channels=in_channels,
-                use_bias=True)
-            if self.activate:
-                self.activ = nn.Activation("relu")
-
-    def hybrid_forward(self, F, x):
-        identity = x
-        x = self.branches(x)
-        x = self.conv(x)
-        x = self.scale * x + identity
-        if self.activate:
-            x = self.activ(x)
-        return x
+from .common import conv1x1_block, conv3x3_block
+from .inceptionv3 import AvgPoolBranch, Conv1x1Branch, ConvSeqBranch
+from .inceptionresnetv1 import InceptionAUnit, InceptionBUnit, InceptionCUnit, ReductionAUnit, ReductionBUnit
 
 
 class InceptBlock5b(HybridBlock):
@@ -458,10 +21,13 @@ class InceptBlock5b(HybridBlock):
 
     Parameters:
     ----------
+    bn_epsilon : float
+        Small float added to variance in Batch norm.
     bn_use_global_stats : bool
         Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
     """
     def __init__(self,
+                 bn_epsilon,
                  bn_use_global_stats,
                  **kwargs):
         super(InceptBlock5b, self).__init__(**kwargs)
@@ -472,6 +38,7 @@ class InceptBlock5b(HybridBlock):
             self.branches.add(Conv1x1Branch(
                 in_channels=in_channels,
                 out_channels=96,
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats))
             self.branches.add(ConvSeqBranch(
                 in_channels=in_channels,
@@ -479,6 +46,7 @@ class InceptBlock5b(HybridBlock):
                 kernel_size_list=(1, 5),
                 strides_list=(1, 1),
                 padding_list=(0, 2),
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats))
             self.branches.add(ConvSeqBranch(
                 in_channels=in_channels,
@@ -486,10 +54,12 @@ class InceptBlock5b(HybridBlock):
                 kernel_size_list=(1, 3, 3),
                 strides_list=(1, 1, 1),
                 padding_list=(0, 1, 1),
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats))
             self.branches.add(AvgPoolBranch(
                 in_channels=in_channels,
                 out_channels=64,
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats))
 
     def hybrid_forward(self, F, x):
@@ -505,59 +75,62 @@ class InceptInitBlock(HybridBlock):
     ----------
     in_channels : int
         Number of input channels.
+    bn_epsilon : float
+        Small float added to variance in Batch norm.
     bn_use_global_stats : bool
         Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
     """
     def __init__(self,
                  in_channels,
+                 bn_epsilon,
                  bn_use_global_stats,
                  **kwargs):
         super(InceptInitBlock, self).__init__(**kwargs)
         with self.name_scope():
-            self.conv1 = InceptConv(
+            self.conv1 = conv3x3_block(
                 in_channels=in_channels,
                 out_channels=32,
-                kernel_size=3,
                 strides=2,
                 padding=0,
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats)
-            self.conv2 = InceptConv(
+            self.conv2 = conv3x3_block(
                 in_channels=32,
                 out_channels=32,
-                kernel_size=3,
                 strides=1,
                 padding=0,
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats)
-            self.conv3 = InceptConv(
+            self.conv3 = conv3x3_block(
                 in_channels=32,
                 out_channels=64,
-                kernel_size=3,
                 strides=1,
                 padding=1,
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats)
             self.pool1 = nn.MaxPool2D(
                 pool_size=3,
                 strides=2,
                 padding=0)
-            self.conv4 = InceptConv(
+            self.conv4 = conv1x1_block(
                 in_channels=64,
                 out_channels=80,
-                kernel_size=1,
                 strides=1,
                 padding=0,
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats)
-            self.conv5 = InceptConv(
+            self.conv5 = conv3x3_block(
                 in_channels=80,
                 out_channels=192,
-                kernel_size=3,
                 strides=1,
                 padding=0,
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats)
             self.pool2 = nn.MaxPool2D(
                 pool_size=3,
                 strides=2,
                 padding=0)
-            self.block = InceptBlock5b(bn_use_global_stats=bn_use_global_stats)
+            self.block = InceptBlock5b(bn_epsilon=bn_epsilon, bn_use_global_stats=bn_use_global_stats)
 
     def hybrid_forward(self, F, x):
         x = self.conv1(x)
@@ -580,6 +153,8 @@ class InceptionResNetV2(HybridBlock):
     ----------
     dropout_rate : float, default 0.0
         Fraction of the input units to drop. Must be a number between 0 and 1.
+    bn_epsilon : float, default 1e-5
+        Small float added to variance in Batch norm.
     bn_use_global_stats : bool, default False
         Whether global moving statistics is used instead of local batch-norm for BatchNorm layers.
     in_channels : int, default 3
@@ -591,6 +166,7 @@ class InceptionResNetV2(HybridBlock):
     """
     def __init__(self,
                  dropout_rate=0.0,
+                 bn_epsilon=1e-5,
                  bn_use_global_stats=False,
                  in_channels=3,
                  in_size=(299, 299),
@@ -600,6 +176,10 @@ class InceptionResNetV2(HybridBlock):
         self.in_size = in_size
         self.classes = classes
         layers = [10, 21, 11]
+        in_channels_list = [320, 1088, 2080]
+        normal_out_channels_list = [[32, 32, 32, 32, 48, 64], [192, 128, 160, 192], [192, 192, 224, 256]]
+        reduction_out_channels_list = [[384, 256, 256, 384], [256, 384, 256, 288, 256, 288, 320]]
+
         normal_units = [InceptionAUnit, InceptionBUnit, InceptionCUnit]
         reduction_units = [ReductionAUnit, ReductionBUnit]
 
@@ -607,28 +187,36 @@ class InceptionResNetV2(HybridBlock):
             self.features = nn.HybridSequential(prefix="")
             self.features.add(InceptInitBlock(
                 in_channels=in_channels,
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats))
-
+            in_channels = in_channels_list[0]
             for i, layers_per_stage in enumerate(layers):
                 stage = nn.HybridSequential(prefix="stage{}_".format(i + 1))
                 with stage.name_scope():
                     for j in range(layers_per_stage):
                         if (j == 0) and (i != 0):
                             unit = reduction_units[i - 1]
+                            out_channels_list_per_stage = reduction_out_channels_list[i - 1]
                         else:
                             unit = normal_units[i]
+                            out_channels_list_per_stage = normal_out_channels_list[i]
                         if (i == len(layers) - 1) and (j == layers_per_stage - 1):
-                            stage.add(unit(
-                                scale=1.0,
-                                activate=False,
-                                bn_use_global_stats=bn_use_global_stats))
+                            unit_kwargs = {"scale": 1.0, "activate": False}
                         else:
-                            stage.add(unit(bn_use_global_stats=bn_use_global_stats))
+                            unit_kwargs = {}
+                        stage.add(unit(
+                            in_channels=in_channels,
+                            out_channels_list=out_channels_list_per_stage,
+                            bn_epsilon=bn_epsilon,
+                            bn_use_global_stats=bn_use_global_stats,
+                            **unit_kwargs))
+                        if (j == 0) and (i != 0):
+                            in_channels = in_channels_list[i]
                 self.features.add(stage)
-
-            self.features.add(incept_conv1x1(
+            self.features.add(conv1x1_block(
                 in_channels=2080,
                 out_channels=1536,
+                bn_epsilon=bn_epsilon,
                 bn_use_global_stats=bn_use_global_stats))
             self.features.add(nn.AvgPool2D(
                 pool_size=8,
@@ -667,7 +255,6 @@ def get_inceptionresnetv2(model_name=None,
     root : str, default '~/.mxnet/models'
         Location for keeping the model parameters.
     """
-
     net = InceptionResNetV2(**kwargs)
 
     if pretrained:
@@ -697,7 +284,7 @@ def inceptionresnetv2(**kwargs):
     root : str, default '~/.mxnet/models'
         Location for keeping the model parameters.
     """
-    return get_inceptionresnetv2(model_name="inceptionresnetv2", **kwargs)
+    return get_inceptionresnetv2(model_name="inceptionresnetv2", bn_epsilon=1e-3, **kwargs)
 
 
 def _test():
@@ -718,6 +305,7 @@ def _test():
         if not pretrained:
             net.initialize(ctx=ctx)
 
+        # net.hybridize()
         net_params = net.collect_params()
         weight_count = 0
         for param in net_params.values():

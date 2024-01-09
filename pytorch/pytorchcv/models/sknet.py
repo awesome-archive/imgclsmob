@@ -33,7 +33,6 @@ class SKConvBlock(nn.Module):
     min_channels : int, default 32
         Minimal number of intermediate channels (`L` parameter in the paper).
     """
-
     def __init__(self,
                  in_channels,
                  out_channels,

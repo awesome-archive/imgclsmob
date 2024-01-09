@@ -40,7 +40,7 @@ def dark_convYxY(x,
     name : str, default 'dark_convYxY'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -126,7 +126,7 @@ class DarkNet(object):
         training : bool, or a TensorFlow boolean scalar tensor, default False
           Whether to return the output in training mode or in inference mode.
 
-        Returns
+        Returns:
         -------
         Tensor
             Resulted tensor.
@@ -161,12 +161,11 @@ class DarkNet(object):
             name="output/final_conv")
         if self.cls_activ:
             x = tf.nn.leaky_relu(x, alpha=self.alpha, name="output/final_activ")
-        x = tf.layers.average_pooling2d(
-            inputs=x,
+        x = tf.keras.layers.AveragePooling2D(
             pool_size=self.avg_pool_size,
             strides=1,
             data_format=self.data_format,
-            name="output/final_pool")
+            name="output/final_pool")(x)
         # x = tf.layers.flatten(x)
         x = flatten(
             x=x,
@@ -194,7 +193,7 @@ def get_darknet(version,
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -251,7 +250,7 @@ def darknet_ref(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -270,7 +269,7 @@ def darknet_tiny(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -289,7 +288,7 @@ def darknet19(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.

@@ -1,18 +1,40 @@
+"""
+    Routines for model statistics calculation.
+"""
+
 import logging
 import numpy as np
 import mxnet as mx
 from mxnet.gluon import nn
-from mxnet.gluon.contrib.nn import Identity
-from .gluoncv2.models.common import ReLU6, ChannelShuffle, ChannelShuffle2, PReLU2
-from .gluoncv2.models.fishnet import InterpolationBlock, ChannelSqueeze
+from mxnet.gluon.contrib.nn import Identity, PixelShuffle2D
+from .gluoncv2.models.common import ReLU6, ChannelShuffle, ChannelShuffle2, PReLU2, HSigmoid, HSwish,\
+    InterpolationBlock, HeatmapMaxDetBlock
+from .gluoncv2.models.fishnet import ChannelSqueeze
 from .gluoncv2.models.irevnet import IRevDownscale, IRevSplitBlock, IRevMergeBlock
 from .gluoncv2.models.rir_cifar import RiRFinalBlock
 from .gluoncv2.models.proxylessnas import ProxylessUnit
+from .gluoncv2.models.lwopenpose_cmupan import LwopDecoderFinalBlock
+from .gluoncv2.models.centernet import CenterNetHeatmapMaxDet
+from .gluoncv2.models.danet import ScaleBlock
+from .gluoncv2.models.jasper import MaskConv1d, NemoMelSpecExtractor
 
 __all__ = ['measure_model']
 
 
 def calc_block_num_params2(net):
+    """
+    Calculate number of trainable parameters in the block (not iterative).
+
+    Parameters:
+    ----------
+    net : Block
+        Model/block.
+
+    Returns:
+    -------
+    int
+        Number of parameters.
+    """
     net_params = net.collect_params()
     weight_count = 0
     for param in net_params.values():
@@ -23,6 +45,19 @@ def calc_block_num_params2(net):
 
 
 def calc_block_num_params(block):
+    """
+    Calculate number of trainable parameters in the block (iterative).
+
+    Parameters:
+    ----------
+    block : Block
+        Model/block.
+
+    Returns:
+    -------
+    int
+        Number of parameters.
+    """
     weight_count = 0
     for param in block.params.values():
         if (param.shape is None) or (not param._differentiable):
@@ -32,8 +67,7 @@ def calc_block_num_params(block):
 
 
 def measure_model(model,
-                  in_channels,
-                  in_size,
+                  in_shapes,
                   ctx=mx.cpu()):
     """
     Calculate model statistics.
@@ -42,10 +76,8 @@ def measure_model(model,
     ----------
     model : HybridBlock
         Tested model.
-    in_channels : int
-        Number of input channels.
-    in_size : tuple of two ints
-        Spatial size of the expected input image.
+    in_shapes : list of tuple of ints
+        Shapes of the input tensors.
     ctx : Context, default CPU
         The context in which to load the pretrained weights.
     """
@@ -60,7 +92,8 @@ def measure_model(model,
 
     def call_hook(block, x, y):
         if not (isinstance(block, IRevSplitBlock) or isinstance(block, IRevMergeBlock) or
-                isinstance(block, RiRFinalBlock)):
+                isinstance(block, RiRFinalBlock) or isinstance(block, InterpolationBlock) or
+                isinstance(block, MaskConv1d) or isinstance(block, NemoMelSpecExtractor)):
             assert (len(x) == 1)
         assert (len(block._children) == 0)
         if isinstance(block, nn.Dense):
@@ -83,6 +116,9 @@ def measure_model(model,
                 extra_num_macs = 0
             else:
                 raise TypeError("Unknown activation type: {}".format(block._act_type))
+        elif isinstance(block, nn.ELU):
+            extra_num_flops = 3 * x[0].size
+            extra_num_macs = 0
         elif isinstance(block, nn.LeakyReLU):
             extra_num_flops = 2 * x[0].size
             extra_num_macs = 0
@@ -94,6 +130,15 @@ def measure_model(model,
             extra_num_macs = 0
         elif isinstance(block, nn.Swish):
             extra_num_flops = 5 * x[0].size
+            extra_num_macs = 0
+        elif isinstance(block, HSigmoid):
+            extra_num_flops = x[0].size
+            extra_num_macs = 0
+        elif isinstance(block, HSwish):
+            extra_num_flops = 2 * x[0].size
+            extra_num_macs = 0
+        elif type(block) in [nn.Conv2DTranspose]:
+            extra_num_flops = 4 * x[0].size
             extra_num_macs = 0
         elif isinstance(block, nn.Conv2D):
             batch = x[0].shape[0]
@@ -155,7 +200,7 @@ def measure_model(model,
         elif isinstance(block, Identity):
             extra_num_flops = 0
             extra_num_macs = 0
-        elif isinstance(block, InterpolationBlock):
+        elif isinstance(block, PixelShuffle2D):
             extra_num_flops = x[0].size
             extra_num_macs = 0
         elif isinstance(block, ChannelSqueeze):
@@ -176,6 +221,40 @@ def measure_model(model,
         elif isinstance(block, ProxylessUnit):
             extra_num_flops = x[0].size
             extra_num_macs = 0
+        elif type(block) in [MaskConv1d, nn.Conv1D]:
+            if isinstance(y, tuple):
+                assert isinstance(block, MaskConv1d)
+                y = y[0]
+            batch = x[0].shape[0]
+            x_h = x[0].shape[2]
+            kernel_size = block._kwargs["kernel"]
+            strides = block._kwargs["stride"]
+            dilation = block._kwargs["dilate"]
+            padding = block._kwargs["pad"]
+            groups = block._kwargs["num_group"]
+            in_channels = block._in_channels
+            out_channels = block._channels
+            y_h = (x_h + 2 * padding[0] - dilation[0] * (kernel_size[0] - 1) - 1) // strides[0] + 1
+            assert (out_channels == y.shape[1])
+            assert (y_h == y.shape[2])
+            kernel_total_size = kernel_size[0]
+            y_size = y_h
+            extra_num_macs = kernel_total_size * in_channels * y_size * out_channels // groups
+            if block.bias is None:
+                extra_num_flops = (2 * kernel_total_size * y_size - 1) * in_channels * out_channels // groups
+            else:
+                extra_num_flops = 2 * kernel_total_size * in_channels * y_size * out_channels // groups
+            extra_num_flops *= batch
+            extra_num_macs *= batch
+        elif type(block) in [InterpolationBlock, HeatmapMaxDetBlock, CenterNetHeatmapMaxDet, ScaleBlock,
+                             NemoMelSpecExtractor]:
+            extra_num_flops, extra_num_macs = block.calc_flops(x[0])
+        elif isinstance(block, LwopDecoderFinalBlock):
+            if not block.calc_3d_features:
+                extra_num_flops = 0
+                extra_num_macs = 0
+            else:
+                raise TypeError("LwopDecoderFinalBlock!")
         else:
             raise TypeError("Unknown layer type: {}".format(type(block)))
 
@@ -203,8 +282,15 @@ def measure_model(model,
 
     hook_handles = register_forward_hooks(model)
 
-    x = mx.nd.zeros((1, in_channels, in_size[0], in_size[1]), ctx=ctx)
-    model(x)
+    if len(in_shapes) == 1:
+        x = mx.nd.zeros(in_shapes[0], ctx=ctx)
+        model(x)
+    elif len(in_shapes) == 2:
+        x1 = mx.nd.zeros(in_shapes[0], ctx=ctx)
+        x2 = mx.nd.zeros(in_shapes[1], ctx=ctx)
+        model(x1, x2)
+    else:
+        raise NotImplementedError()
 
     num_params1 = calc_block_num_params2(model)
     if num_params != num_params1:

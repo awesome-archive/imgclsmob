@@ -16,7 +16,7 @@ class HPatches(data.Dataset):
     Info URL: https://github.com/hpatches/hpatches-dataset
     Data URL: http://icvl.ee.ic.ac.uk/vbalnt/hpatches/hpatches-sequences-release.tar.gz
 
-    Parameters
+    Parameters:
     ----------
     root : str, default '~/.torch/datasets/hpatches'
         Path to the folder stored the dataset.
@@ -43,6 +43,7 @@ class HPatches(data.Dataset):
         self.homographies = []
 
         subdir_names = [name for name in os.listdir(root) if os.path.isdir(os.path.join(root, name))]
+        # subdir_names.sort()
         if alteration != "all":
             subdir_names = [name for name in subdir_names if name[0] == alteration]
         for subdir_name in subdir_names:
@@ -56,28 +57,28 @@ class HPatches(data.Dataset):
         self.transform = transform
 
     def __getitem__(self, index):
-        print("Image file name: {}, index: {}".format(self.image_paths[index], index))
+        # print("Image file name: {}, index: {}".format(self.image_paths[index], index))
 
         image = cv2.imread(self.image_paths[index], flags=0)
-        if image.shape[0] > 1500:
-            image = cv2.resize(
-                src=image,
-                dsize=None,
-                fx=0.5,
-                fy=0.5,
-                interpolation=cv2.INTER_AREA)
-        print("Image shape: {}".format(image.shape))
+        # if image.shape[0] > 1500:
+        #     image = cv2.resize(
+        #         src=image,
+        #         dsize=None,
+        #         fx=0.5,
+        #         fy=0.5,
+        #         interpolation=cv2.INTER_AREA)
+        # print("Image shape: {}".format(image.shape))
 
         warped_image = cv2.imread(self.warped_image_paths[index], flags=0)
-        if warped_image.shape[0] > 1500:
-            warped_image = cv2.resize(
-                src=warped_image,
-                dsize=None,
-                fx=0.5,
-                fy=0.5,
-                interpolation=cv2.INTER_AREA)
-        print("W-Image shape: {}".format(warped_image.shape))
-        homography = self.homographies[index]
+        # if warped_image.shape[0] > 1500:
+        #     warped_image = cv2.resize(
+        #         src=warped_image,
+        #         dsize=None,
+        #         fx=0.5,
+        #         fy=0.5,
+        #         interpolation=cv2.INTER_AREA)
+        # print("W-Image shape: {}".format(warped_image.shape))
+        homography = self.homographies[index].astype(np.float32)
 
         if self.transform is not None:
             image = self.transform(image)

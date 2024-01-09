@@ -10,16 +10,19 @@ import logging
 import hashlib
 
 _model_sha1 = {name: (error, checksum, repo_release_tag) for name, error, checksum, repo_release_tag in [
-    ('alexnet', '2132', 'e3d8a2498a625a65ea616079e382e902e0a89d82', 'v0.0.121'),
-    ('vgg11', '1173', 'ea0bf3a5733af08a14f294e692c50c10803971ea', 'v0.0.122'),
-    ('vgg13', '1115', 'f01687c1c2691446602e6a8f769c837b1dfd4bfa', 'v0.0.122'),
-    ('vgg16', '0868', 'f6cadf2cf6c3b5f66efe6a80fb26893d89ed4765', 'v0.0.122'),
-    ('vgg19', '0823', '99580f953300f445d7e664afe2a913d16725fdd6', 'v0.0.122'),
+    ('alexnet', '1788', 'd3cd2a5a7dfb882c47153b5abffc2edfe8335838', 'v0.0.394'),
+    ('alexnetb', '1853', '58a51cd1803929c52eed6e1c69a43328fcc1d1cb', 'v0.0.384'),
+    ('zfnet', '1715', 'a18747efbec5ce849244a540651228e287d13296', 'v0.0.395'),
+    ('zfnetb', '1482', '2624da317b57bec7d3ce73e7548caa6eca0a6ad6', 'v0.0.400'),
+    ('vgg11', '1015', 'b87e9dbcbab308f671a69ef3ed67067e62c5429f', 'v0.0.381'),
+    ('vgg13', '0946', 'f1411e1fdd5e75919d4e1a0f7b33ac06e0acb146', 'v0.0.388'),
+    ('vgg16', '0830', 'e63ead2e896e1a5185840b8cc0973d0791b19d35', 'v0.0.401'),
+    ('vgg19', '0768', 'cf2a33c6221e44432f38dd8bdcf1312efd208ae8', 'v0.0.420'),
     ('bn_vgg11', '0936', '4ff8667b2daba34bb4531744a50c000543e4e524', 'v0.0.339'),
     ('bn_vgg13', '0888', '0a49f8714fa647684940feb6cffb0a468290a5af', 'v0.0.353'),
     ('bn_vgg16', '0755', '9948c82dcb133081796d095ebd5cf8815d77f7d1', 'v0.0.359'),
     ('bn_vgg19', '0689', '8a3197c6a27aa4a271e31610ff6cc58c6b593a81', 'v0.0.360'),
-    ('bn_vgg11b', '1058', '44558265426b4ba945af9695628ea7564989115e', 'v0.0.123'),
+    ('bn_vgg11b', '0979', '6a3890a42d0b7bab962582298ddaf6077eedf22d', 'v0.0.407'),
     ('bn_vgg13b', '1015', '999e47a6a5d4cb493d1af3e31de04d67d25176e8', 'v0.0.123'),
     ('bn_vgg16b', '0866', '1f8251aa987151e89a82f0f209c2a8bbde0f0c47', 'v0.0.123'),
     ('bn_vgg19b', '0817', '784e4c396e6de685727bc8fd30f5ed35c66a84a0', 'v0.0.123'),
@@ -41,7 +44,7 @@ _model_sha1 = {name: (error, checksum, repo_release_tag) for name, error, checks
     ('resnet101', '0601', '3fc260bc67ab133b39f087862f5bc70cf6aa9442', 'v0.0.72'),
     ('resnet101b', '0507', '527dca370eb8a2a4a25025993f8ccce35b00c9ef', 'v0.0.357'),
     ('resnet152', '0535', 'b21844fcaea4e14a91fa17bfa870a3d056d258ea', 'v0.0.144'),
-    ('resnet152b', '0523', 'da1f46f37d414f5411d5758f37e842a9facdf919', 'v0.0.143'),
+    ('resnet152b', '0485', '36964f4867125dd08fa722d4d639273d7d1874e1', 'v0.0.378'),
     ('preresnet10', '1401', '3a2eed3b9254d35ba546c9894cf9cc3c6d88aa5c', 'v0.0.249'),
     ('preresnet12', '1321', '0c424c407bd91c5135ec74660b5f001f07cec0df', 'v0.0.257'),
     ('preresnet14', '1216', 'fda0747fd40cad58e46dad53e68d3d06b8829829', 'v0.0.260'),
@@ -60,30 +63,39 @@ _model_sha1 = {name: (error, checksum, repo_release_tag) for name, error, checks
     ('preresnet101', '0572', 'cd61594e9e2fb758ca69a38baf31223351638c4f', 'v0.0.73'),
     ('preresnet101b', '0539', 'c0b9e129908051592393ba5e7939a4feb5b82b6c', 'v0.0.351'),
     ('preresnet152', '0529', 'b761f286ab284b916f388cc5d6af00e5ea049081', 'v0.0.73'),
-    ('preresnet152b', '0576', 'c036165cdaf177cbd44a58f88241b5161f729a33', 'v0.0.73'),
+    ('preresnet152b', '0500', '7ae9df4bbabbc12d32a35f4369d64269ba3c8e7b', 'v0.0.386'),
     ('preresnet200b', '0560', '881e0e2869428d89831bde0c7da219ed69236f16', 'v0.0.73'),
     ('preresnet269b', '0555', 'c799eaf246d3dccf72ac10cdec3f35bd8bf72e71', 'v0.0.239'),
     ('resnext14_16x4d', '1224', '3f603dde73c4581f60ada40499ed42d800847268', 'v0.0.370'),
     ('resnext14_32x2d', '1246', 'df7d6b8a824796742a0bb369d654135cd109dfb3', 'v0.0.371'),
     ('resnext14_32x4d', '1113', 'cac0dad52d391f9268c9fee6f95be59e14952fcc', 'v0.0.327'),
+    ('resnext26_32x2d', '0849', '2dee5d79b8f093f1f6d1cf87b7f36e0481c6648f', 'v0.0.373'),
     ('resnext26_32x4d', '0717', '594567d27cea1f5e324a6ecfd93f209d30c148d9', 'v0.0.332'),
-    ('resnext101_32x4d', '0580', 'bf746cb6f52d3329daeb66427517b03159806992', 'v0.0.74'),
-    ('resnext101_64x4d', '0543', 'f51ffdb055495036e22f1867205aee69f27518b1', 'v0.0.74'),
+    ('resnext50_32x4d', '0546', 'c0817d9b70b46f067d4dc5c915e6cbdc3dd820af', 'v0.0.417'),
+    ('resnext101_32x4d', '0493', 'de52ea63f204c839c176f6162ae73a19a33626c4', 'v0.0.417'),
+    ('resnext101_64x4d', '0485', 'ddff97a9e6aa2ccd603a067c2158044cec8b8342', 'v0.0.417'),
     ('seresnet10', '1336', 'd4a0a9d3e2e2b4188aac06d3b6cc4132f05ac916', 'v0.0.354'),
     ('seresnet18', '0923', '7aa519d2ec4c721c61a9fd04a9b0ca745f12b24a', 'v0.0.355'),
     ('seresnet26', '0809', 'b2a8b74fe11edbfa798c35d882d6ebd5cfceb6ff', 'v0.0.363'),
     ('seresnetbc26b', '0681', '692ccde37b4dc19df0bc5b92256f0023228baf98', 'v0.0.366'),
+    ('seresnetbc38b', '0578', '2d787dc45bd6775fa96b4048ab5ac191089a0ab0', 'v0.0.374'),
     ('seresnet50', '0643', 'e022e5b9e58e19c692d00394c85daa57ea943b82', 'v0.0.75'),
+    ('seresnet50b', '0533', '539e58be15125cf7693cc6318d99592a2f956d48', 'v0.0.387'),
     ('seresnet101', '0589', '305d23018de942b25df59d8ac9d2dd14374d7d28', 'v0.0.75'),
     ('seresnet152', '0578', 'd06ab6d909129693da68c552b91f3f344795114f', 'v0.0.75'),
-    ('seresnext50_32x4d', '0553', '207232148cb61e6f2af55aa2e3945be52a4329d1', 'v0.0.76'),
-    ('seresnext101_32x4d', '0497', '268d7d224024cd3d33ba7b259b6975bd1d064619', 'v0.0.76'),
+    ('sepreresnet10', '1309', 'b0162a2e1219911d8c386ba0fef741ab5b112940', 'v0.0.377'),
+    ('sepreresnet18', '0941', '5606cb354b61974a97ae81807194638fc3ea0576', 'v0.0.380'),
+    ('sepreresnetbc26b', '0634', 'd903397d7afafbf43b5c19da927601a128cafd0b', 'v0.0.399'),
+    ('sepreresnetbc38b', '0564', '262a4a2e23d34ab244b107fe8397e776744e4fcb', 'v0.0.409'),
+    ('seresnext50_32x4d', '0507', '982a4cb8190a4e7bb21d4582336c13d8363c4ece', 'v0.0.418'),
+    ('seresnext101_32x4d', '0461', 'b84ec20adb9d67f56ac4cd6eb35b134f964c1936', 'v0.0.418'),
+    ('seresnext101_64x4d', '0465', 'b16029e686fb50fd64ed59df22c9d3c5ed0470c1', 'v0.0.418'),
     ('senet16', '0803', '366c58ce2f47ded548734cf336d46b50517c78c4', 'v0.0.341'),
     ('senet28', '0594', '98ba8cc2068495fe192af40328f1838b1e835b6f', 'v0.0.356'),
     ('senet154', '0463', 'c86eaaed79c696a32ace4a8576fc0b50f0f93900', 'v0.0.86'),
     ('densenet121', '0688', 'e3bccdc5544f46352bb91671ac4cd7e2f788952b', 'v0.0.314'),
     ('densenet161', '0617', '9deca33a34a5c4a0a84f0a37920dbfd1cad85cb7', 'v0.0.77'),
-    ('densenet169', '0687', '239105396a404a1673e0fc04ca0dac2aa60dabcc', 'v0.0.77'),
+    ('densenet169', '0606', 'fcbb5c869350e22cc79b15a0508f2f5598dacb90', 'v0.0.406'),
     ('densenet201', '0635', '5eda789595ba0b8b450705220704687fa8ea8788', 'v0.0.77'),
     ('darknet_tiny', '1751', '750ff8d9b17beb5ab88200aa787dfcb5b6ca8b36', 'v0.0.71'),
     ('darknet_ref', '1672', '3c8ed62a43b9e8934b4beb7c47ce4c7b2cdb7a64', 'v0.0.71'),
@@ -141,7 +153,8 @@ _model_sha1 = {name: (error, checksum, repo_release_tag) for name, error, checks
     ('igcv3_wd2', '1705', 'de0b98d950a3892b6d15d1c3ea248d41a34adf00', 'v0.0.132'),
     ('igcv3_w3d4', '1096', 'b8650159ab15b118c0655002d9ce613b3a36dea1', 'v0.0.207'),
     ('igcv3_w1', '0903', 'a69c216fa5838dba316b01d347846812835650fe', 'v0.0.243'),
-    ('mnasnet', '1144', 'f2b84fc44eabe0722c84bdcb7748fa390c3c1162', 'v0.0.117')]}
+    ('mnasnet_b1', '0800', 'a21e7b11537a81d57be61b27761efa69b0b44728', 'v0.0.419'),
+    ('mnasnet_a1', '0756', '2903749fb1ac67254487ccf1668cae064170ffd1', 'v0.0.419')]}
 
 imgclsmob_repo_url = 'https://github.com/osmr/imgclsmob'
 
@@ -159,14 +172,14 @@ def get_model_file(model_name,
     Return location for the pretrained on local file system. This function will download from online model zoo when
     model cannot be found or has mismatch. The root directory will be created if it doesn't exist.
 
-    Parameters
+    Parameters:
     ----------
     model_name : str
         Name of the model.
     local_model_store_dir_path : str, default $TENSORFLOW_HOME/models
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     file_path
         Path to the requested pretrained model file.
@@ -211,7 +224,7 @@ def get_model_file(model_name,
 def _download(url, path=None, overwrite=False, sha1_hash=None, retries=5, verify_ssl=True):
     """Download an given URL
 
-    Parameters
+    Parameters:
     ----------
     url : str
         URL to download
@@ -228,7 +241,7 @@ def _download(url, path=None, overwrite=False, sha1_hash=None, retries=5, verify
     verify_ssl : bool, default True
         Verify SSL certificates.
 
-    Returns
+    Returns:
     -------
     str
         The file path of the downloaded file.
@@ -294,14 +307,14 @@ def _download(url, path=None, overwrite=False, sha1_hash=None, retries=5, verify
 def _check_sha1(filename, sha1_hash):
     """Check whether the sha1 hash of the file content matches the expected hash.
 
-    Parameters
+    Parameters:
     ----------
     filename : str
         Path to the file.
     sha1_hash : str
         Expected sha1 hash in hexadecimal digits.
 
-    Returns
+    Returns:
     -------
     bool
         Whether the file content matches the expected hash.
@@ -321,12 +334,12 @@ def load_state_dict(file_path):
     """
     Load model state dictionary from a file.
 
-    Parameters
+    Parameters:
     ----------
     file_path : str
         Path to the file.
 
-    Returns
+    Returns:
     -------
     state_dict : dict
         Dictionary with values of model variables.
@@ -347,14 +360,14 @@ def download_state_dict(model_name,
     """
     Load model state dictionary from a file with downloading it if necessary.
 
-    Parameters
+    Parameters:
     ----------
     model_name : str
         Name of the model.
     local_model_store_dir_path : str, default $TENSORFLOW_HOME/models
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     state_dict : dict
         Dictionary with values of model variables.
@@ -374,7 +387,7 @@ def init_variables_from_state_dict(sess,
     """
     Initialize model variables from state dictionary.
 
-    Parameters
+    Parameters:
     ----------
     sess: Session
         A Session to use to load the weights.

@@ -38,7 +38,7 @@ def fire_conv(x,
     name : str, default 'fire_conv'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -86,7 +86,7 @@ def fire_unit(x,
     name : str, default 'fire_unit'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -151,7 +151,7 @@ def squeeze_init_block(x,
     name : str, default 'squeeze_init_block'
         Block name.
 
-    Returns
+    Returns:
     -------
     Tensor
         Resulted tensor.
@@ -227,7 +227,7 @@ class SqueezeNet(object):
         training : bool, or a TensorFlow boolean scalar tensor, default False
           Whether to return the output in training mode or in inference mode.
 
-        Returns
+        Returns:
         -------
         Tensor
             Resulted tensor.
@@ -262,11 +262,11 @@ class SqueezeNet(object):
                     data_format=self.data_format,
                     name="features/stage{}/unit{}".format(i + 1, j + 1))
                 in_channels = out_channels
-        x = tf.layers.dropout(
-            inputs=x,
+        x = tf.keras.layers.Dropout(
             rate=0.5,
-            training=training,
-            name="features/dropout")
+            name="features/dropout")(
+            inputs=x,
+            training=training)
 
         x = conv2d(
             x=x,
@@ -276,12 +276,11 @@ class SqueezeNet(object):
             data_format=self.data_format,
             name="output/final_conv")
         x = tf.nn.relu(x, name="output/final_activ")
-        x = tf.layers.average_pooling2d(
-            inputs=x,
+        x = tf.keras.layers.AveragePooling2D(
             pool_size=13,
             strides=1,
             data_format=self.data_format,
-            name="output/final_pool")
+            name="output/final_pool")(x)
         # x = tf.layers.flatten(x)
         x = flatten(
             x=x,
@@ -312,7 +311,7 @@ def get_squeezenet(version,
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -367,7 +366,7 @@ def squeezenet_v1_0(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -387,7 +386,7 @@ def squeezenet_v1_1(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -407,7 +406,7 @@ def squeezeresnet_v1_0(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.
@@ -427,7 +426,7 @@ def squeezeresnet_v1_1(**kwargs):
     root : str, default '~/.tensorflow/models'
         Location for keeping the model parameters.
 
-    Returns
+    Returns:
     -------
     functor
         Functor for model graph creation with extra fields.

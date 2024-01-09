@@ -10,7 +10,6 @@ __all__ = ['ResNet', 'resnet10', 'resnet12', 'resnet14', 'resnetbc14b', 'resnet1
 
 import os
 import torch.nn as nn
-import torch.nn.init as init
 from .common import conv1x1_block, conv3x3_block, conv7x7_block
 
 
@@ -26,19 +25,29 @@ class ResBlock(nn.Module):
         Number of output channels.
     stride : int or tuple/list of 2 int
         Strides of the convolution.
+    bias : bool, default False
+        Whether the layer uses a bias vector.
+    use_bn : bool, default True
+        Whether to use BatchNorm layer.
     """
     def __init__(self,
                  in_channels,
                  out_channels,
-                 stride):
+                 stride,
+                 bias=False,
+                 use_bn=True):
         super(ResBlock, self).__init__()
         self.conv1 = conv3x3_block(
             in_channels=in_channels,
             out_channels=out_channels,
-            stride=stride)
+            stride=stride,
+            bias=bias,
+            use_bn=use_bn)
         self.conv2 = conv3x3_block(
             in_channels=out_channels,
             out_channels=out_channels,
+            bias=bias,
+            use_bn=use_bn,
             activation=None)
 
     def forward(self, x):
@@ -117,6 +126,10 @@ class ResUnit(nn.Module):
         Padding value for the second convolution layer in bottleneck.
     dilation : int or tuple/list of 2 int, default 1
         Dilation value for the second convolution layer in bottleneck.
+    bias : bool, default False
+        Whether the layer uses a bias vector.
+    use_bn : bool, default True
+        Whether to use BatchNorm layer.
     bottleneck : bool, default True
         Whether to use a bottleneck or simple block in units.
     conv1_stride : bool, default False
@@ -128,6 +141,8 @@ class ResUnit(nn.Module):
                  stride,
                  padding=1,
                  dilation=1,
+                 bias=False,
+                 use_bn=True,
                  bottleneck=True,
                  conv1_stride=False):
         super(ResUnit, self).__init__()
@@ -145,12 +160,16 @@ class ResUnit(nn.Module):
             self.body = ResBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
-                stride=stride)
+                stride=stride,
+                bias=bias,
+                use_bn=use_bn)
         if self.resize_identity:
             self.identity_conv = conv1x1_block(
                 in_channels=in_channels,
                 out_channels=out_channels,
                 stride=stride,
+                bias=bias,
+                use_bn=use_bn,
                 activation=None)
         self.activ = nn.ReLU(inplace=True)
 
@@ -258,9 +277,9 @@ class ResNet(nn.Module):
     def _init_params(self):
         for name, module in self.named_modules():
             if isinstance(module, nn.Conv2d):
-                init.kaiming_uniform_(module.weight)
+                nn.init.kaiming_uniform_(module.weight)
                 if module.bias is not None:
-                    init.constant_(module.bias, 0)
+                    nn.init.constant_(module.bias, 0)
 
     def forward(self, x):
         x = self.features(x)
@@ -747,10 +766,11 @@ def _test():
         assert (model != resnet200 or weight_count == 64673832)
         assert (model != resnet200b or weight_count == 64673832)
 
-        x = torch.randn(1, 3, 224, 224)
+        batch = 4
+        x = torch.randn(batch, 3, 224, 224)
         y = net(x)
         y.sum().backward()
-        assert (tuple(y.size()) == (1, 1000))
+        assert (tuple(y.size()) == (batch, 1000))
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ class CityscapesSegDataset(SegDataset):
     """
     Cityscapes semantic segmentation dataset.
 
-    Parameters
+    Parameters:
     ----------
     root : str
         Path to a folder with `leftImg8bit` and `gtFine` subfolders.
@@ -43,8 +43,8 @@ class CityscapesSegDataset(SegDataset):
             for image_file_name in image_file_names:
                 if image_file_name.endswith(".png"):
                     image_file_path = os.path.join(image_subdir_path, image_file_name)
-                    mask_file_name = image_file_name.replace('leftImg8bit', 'gtFine_labelIds')
-                    mask_subdir_path = image_subdir_path.replace('leftImg8bit', 'gtFine')
+                    mask_file_name = image_file_name.replace("leftImg8bit", "gtFine_labelIds")
+                    mask_subdir_path = image_subdir_path.replace("leftImg8bit", "gtFine")
                     mask_file_path = os.path.join(mask_subdir_path, mask_file_name)
                     if os.path.isfile(mask_file_path):
                         self.images.append(image_file_path)
@@ -129,3 +129,4 @@ class CityscapesMetaInfo(VOCMetaInfo):
              "bg_idx": CityscapesSegDataset.background_idx,
              "ignore_bg": CityscapesSegDataset.ignore_bg,
              "macro_average": False}]
+        self.test_net_extra_kwargs = self.net_extra_kwargs
